@@ -1,0 +1,8 @@
+🚀 CPS Release v1.2.3 is live!
+
+• Fixed login issues - you can now use special characters in passwords
+• Faster page loads - database optimizations improve performance by 40%
+• Better accessibility - UI updates make the platform easier to use
+
+Check out the full release notes: https://wiki.example.com/releases/v1.2.3
+
