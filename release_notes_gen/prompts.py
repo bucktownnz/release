@@ -13,7 +13,7 @@ Generate release notes in the following format:
 1–2 sentences describing the overall change.
 
 ## Changes
-- {key}: {summary}
+- {{key}}: {{summary}}
   - (optional) User-facing sub-bullet if needed.
 
 ## Fix Version Description (Jira field)
