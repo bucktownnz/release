@@ -8,13 +8,13 @@ from typing import Optional
 import streamlit as st
 from dotenv import load_dotenv
 
-from .csv_loader import load_csv
-from .llm import (
+from release_notes_gen.csv_loader import load_csv
+from release_notes_gen.llm import (
     generate_fix_version_notes,
     generate_confluence_notes,
     generate_slack_announcement,
 )
-from .writer import write_outputs
+from release_notes_gen.writer import write_outputs
 
 
 # Load .env if it exists
@@ -29,7 +29,10 @@ def load_example_from_file_or_text(
         try:
             content = uploaded_file.read()
             if isinstance(content, bytes):
-                return content.decode("utf-8").strip()
+                try:
+                    return content.decode("utf-8-sig").strip()
+                except UnicodeDecodeError:
+                    return content.decode("utf-8").strip()
             return str(content).strip()
         except Exception as e:
             st.error(f"Error reading uploaded file: {e}")

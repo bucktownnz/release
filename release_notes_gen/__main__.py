@@ -13,13 +13,13 @@ try:
 except ImportError:
     RICH_AVAILABLE = False
 
-from .csv_loader import load_csv
-from .llm import (
+from release_notes_gen.csv_loader import load_csv
+from release_notes_gen.llm import (
     generate_fix_version_notes,
     generate_confluence_notes,
     generate_slack_announcement,
 )
-from .writer import write_outputs
+from release_notes_gen.writer import write_outputs
 
 
 def load_example_file(path: str) -> str:
@@ -53,8 +53,8 @@ def main():
     )
     parser.add_argument(
         "--project",
-        default="",
-        help="Project code (optional)",
+        default=None,
+        help="Project code (optional, defaults to 'Project')",
     )
     parser.add_argument(
         "--summary-col",
@@ -122,6 +122,8 @@ def main():
         print("Set it or create a .env file with OPENAI_API_KEY=sk-...", file=sys.stderr)
         sys.exit(1)
     
+    project_name = (args.project or "").strip() or "Project"
+
     console = Console() if RICH_AVAILABLE else None
     
     try:
@@ -182,7 +184,7 @@ def main():
             with console.status("[bold green]Generating Jira Fix Version notes..."):
                 fix_version_content = generate_fix_version_notes(
                     tickets,
-                    args.project,
+                    project_name,
                     args.fix_version,
                     args.model,
                     args.max_tokens,
@@ -194,7 +196,7 @@ def main():
             with console.status("[bold green]Generating Confluence notes..."):
                 confluence_content = generate_confluence_notes(
                     tickets,
-                    args.project,
+                    project_name,
                     args.fix_version,
                     args.model,
                     args.max_tokens,
@@ -206,7 +208,7 @@ def main():
             with console.status("[bold green]Generating Slack announcement..."):
                 slack_content = generate_slack_announcement(
                     tickets,
-                    args.project,
+                    project_name,
                     args.fix_version,
                     args.model,
                     args.max_tokens,
@@ -218,7 +220,7 @@ def main():
             print("  Generating Jira Fix Version notes...")
             fix_version_content = generate_fix_version_notes(
                 tickets,
-                args.project,
+                project_name,
                 args.fix_version,
                 args.model,
                 args.max_tokens,
@@ -230,7 +232,7 @@ def main():
             print("  Generating Confluence notes...")
             confluence_content = generate_confluence_notes(
                 tickets,
-                args.project,
+                project_name,
                 args.fix_version,
                 args.model,
                 args.max_tokens,
@@ -242,7 +244,7 @@ def main():
             print("  Generating Slack announcement...")
             slack_content = generate_slack_announcement(
                 tickets,
-                args.project,
+                project_name,
                 args.fix_version,
                 args.model,
                 args.max_tokens,
