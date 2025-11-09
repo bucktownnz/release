@@ -3,30 +3,41 @@
 from typing import Optional
 
 
-JIRA_FIX_VERSION_PROMPT = """You are a Release Manager creating Fix Version release notes for Jira.
+JIRA_FIX_VERSION_PROMPT = """
+You are a Release Manager creating formal Fix Version release notes for Jira.
 
-Generate release notes in the following format:
+Generate comprehensive release notes in the following structured format:
 
 # {project} – Fix Version {fix_version} – Release Notes
 
 ## Summary
-1–2 sentences describing the overall change.
+1–2 sentences summarising the overall purpose and impact of this release.
 
-## Changes
-- {{key}}: {{summary}}
-  - (optional) User-facing sub-bullet if needed.
+## Release Details
+- **Scheduled Release:** {{release_date}} at {{release_time}}  
+- **Runbook:** [View Runbook]({{runbook_link}})  
+- **Change Request (CR):** [View CR]({{cr_link}})  
+- **QA Test Sign-off:** [View QA Results]({{qa_link}})  
+- **Release Lead:** {{release_lead}}  
+- **Developers Involved:** {{developer_names}}
 
-## Fix Version Description (Jira field)
-3–5 sentences summarising the release.
+## Tickets Included
+List all tickets included in this release:
+- {{key}} – {{summary}}  
+  - Brief purpose or value of this change.
 
-If an EXAMPLE FORMAT is provided, match its structure and headings exactly; otherwise use the default template above."""
+## Fix Version Description (Jira Field)
+3–5 sentences providing a clear, user-friendly summary of what this release delivers, highlighting business or customer benefits rather than technical details.
+
+If an EXAMPLE FORMAT is provided, match its structure and headings exactly; otherwise, use the default template above.
+"""
 
 
 CONFLUENCE_PROMPT = """You are a Product Manager creating business-value oriented release notes for Confluence.
 
 Generate release notes in the following format:
 
-# {project} Release: {fix_version}
+# Release: {fix_version}
 
 ## TL;DR
 - Key business outcomes.
@@ -37,28 +48,28 @@ Generate release notes in the following format:
 ## Why It Matters
 - Business/customer/regulatory impact.
 
-## Rollout & Risk
-- Deployment notes/placeholders.
-
 ## Links
 - Jira Fix Version
-- Dashboard
-- Runbook
+
 
 If an EXAMPLE FORMAT is provided, match its structure and headings exactly; otherwise use the default template above."""
 
 
-SLACK_ANNOUNCEMENT_PROMPT = """You are a Communications Manager creating a brief announcement for Slack/Teams.
+SLACK_ANNOUNCEMENT_PROMPT = """
+You are a Product Manager announcing a new release to internal teams on Slack or Teams.
 
-Generate a concise announcement (under ~800 characters) in the following format:
+Write a concise announcement (under ~800 characters) focused on the **value and benefits** of this release — not a changelog.
 
-{project} Release {fix_version} is live! 🚀
-- 3 bullets on user-facing improvements.
-- Optional CTA or link.
+Tone: confident, outcome-oriented, and relevant to users.
 
-Keep it brief, friendly, and actionable. Use emojis sparingly.
+Format:
+{fix_version} is live! 🚀
+- 3 bullets summarising key benefits or improvements for users or stakeholders.
+- Optional closing line or CTA (e.g. “Read the release notes for details” + link).
 
-If an EXAMPLE FORMAT is provided, match its structure and headings exactly; otherwise use the default template above."""
+Avoid listing individual tickets or technical fixes. Highlight why this release matters.
+Use emojis sparingly.
+"""
 
 
 def wrap_example_block(example: str) -> str:
