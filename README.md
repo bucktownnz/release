@@ -10,6 +10,7 @@ Generate professional release notes from Jira CSV exports using OpenAI. Supports
   - Jira Fix Version release notes
   - Confluence-ready business-value notes
   - Slack/Teams announcements
+- 🧭 Epic Pack Refiner for epic-level planning (Streamlit tab + CLI subcommand)
 - 🎨 Custom example formats to guide output structure
 - 🔄 Automatic retry with exponential backoff
 - 💻 CLI and Streamlit web UI
@@ -101,6 +102,28 @@ python -m release_notes_gen \
   --dry-run
 ```
 
+#### Epic Pack Refiner
+
+Refine an epic and its child tickets into a complete artefact pack:
+
+```bash
+python -m release_notes_gen epic-refiner \
+  --input ./data/epic.csv \
+  --project CPS \
+  --model gpt-4o-mini \
+  --temperature 0 \
+  --max-tokens 1800 \
+  --concurrency 4 \
+  --out-dir ./out/epic_packs \
+  --ticket-example ./examples/ticket_example.md \
+  --epic-example ./examples/epic_example.md \
+  --summary-col Summary \
+  --description-col Description \
+  --parent-col "Parent key"
+```
+
+Add `--dry-run` to validate the CSV without invoking the OpenAI API.
+
 ### Web Interface (Streamlit)
 
 Launch the web UI:
@@ -112,8 +135,9 @@ streamlit run release_notes_gen/ui_streamlit.py
 Then open http://localhost:8501 in your browser.
 
 **Features:**
+- Switch between Release Notes and Epic Pack Refiner tabs
 - Upload CSV files via drag-and-drop
-- Configure model and parameters
+- Configure model and parameters for each workflow
 - Provide example formats via file upload or text paste
 - Preview and download generated notes
 - Session state caching to avoid recomputation
@@ -143,6 +167,16 @@ All outputs are written to the `out/` directory (or custom `--out-dir`):
 - `jira_fix_version_notes.md` - Jira Fix Version release notes
 - `confluence_release_notes.md` - Confluence-ready notes
 - `slack_announcement.txt` - Slack/Teams announcement
+
+Epic Pack Refiner runs create a timestamped folder under `out/epic_packs/`:
+
+- `epic.md` – refined epic narrative
+- `stories.md` – refined child tickets
+- `actions.md` – aggregated questions and gaps
+- `suggested_new_tickets.md` – higher-value slices and missing work
+- `index.md` – run summary, warnings, and traceability footer
+- `refined_tickets.csv` – quick reference of refined titles/summaries
+- `pack.zip` – ready-to-share archive of the artefacts
 
 ## Example Formats
 

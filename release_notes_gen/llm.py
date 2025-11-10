@@ -91,6 +91,27 @@ def _call_openai(
     return response.choices[0].message.content.strip()
 
 
+def chat_completion(
+    messages: List[Dict[str, str]],
+    model: str = "gpt-4o-mini",
+    max_tokens: int = 2000,
+    temperature: float = 0.2,
+) -> str:
+    """
+    Perform a chat completion request using the shared retry-aware client.
+
+    Args:
+        messages: Message list for the chat completion.
+        model: OpenAI model name.
+        max_tokens: Response token limit.
+        temperature: Sampling temperature.
+
+    Returns:
+        Response content as a string (stripped).
+    """
+    return _call_openai(messages, model, max_tokens, temperature)
+
+
 def generate_fix_version_notes(
     tickets: List[Dict[str, Optional[str]]],
     project: str,
