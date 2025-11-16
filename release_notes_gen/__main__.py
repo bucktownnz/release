@@ -376,6 +376,10 @@ def run_epic_refiner_cli(argv: Optional[Iterable[str]] = None) -> None:
         action="store_true",
         help="Parse and validate only; do not call the OpenAI API.",
     )
+    parser.add_argument(
+        "--squad",
+        help="Optional squad context (CAT or AI).",
+    )
 
     args = parser.parse_args(list(argv) if argv is not None else None)
 
@@ -394,6 +398,14 @@ def run_epic_refiner_cli(argv: Optional[Iterable[str]] = None) -> None:
         }.items()
         if value
     }
+
+    squad_arg: Optional[str] = None
+    if args.squad:
+        candidate = args.squad.strip().upper()
+        if candidate not in {"CAT", "AI"}:
+            print("Invalid squad. Allowed values: CAT, AI.", file=sys.stderr)
+            sys.exit(1)
+        squad_arg = candidate
 
     try:
         if console:
@@ -474,6 +486,7 @@ def run_epic_refiner_cli(argv: Optional[Iterable[str]] = None) -> None:
             column_overrides=column_overrides or None,
             config=config,
             progress_callback=_log,
+            squad=squad_arg,
         )
 
         if not result.outputs:

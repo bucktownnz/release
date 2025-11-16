@@ -1,0 +1,62 @@
+CAT:
+  display_name: "Customer & Accounts Platform (CAT)"
+  mission: >
+    Provide a single, trusted source of truth for customers and accounts, and the core
+    services needed to open, service, and reconcile real estate lending and savings products.
+  primary_users:
+    - "Real estate lending operations and underwriters"
+    - "Servicing and collections teams"
+    - "Other engineering squads integrating to customer/account APIs"
+  systems_owned:
+    - "Customer Profile Service (CPS) for customer records and relationships"
+    - "Customer Matching / deduplication"
+    - "Accounts Service (core account and balance model)"
+    - "Payments / direct debit integration (e.g. GoCardless)"
+    - "Thought Machine smart contract integration for real estate lending"
+    - "Data Lifecycle / retention and audit logging"
+  responsibilities:
+    - "Own canonical customer and account data and related APIs"
+    - "Provide stable contracts and events for other domains to build on"
+    - "Ensure migrations off legacy vendors are safe and auditable"
+  non_functional_priorities:
+    - "Strong audit trail of all changes"
+    - "Correctness and data integrity over speed"
+    - "Regulatory compliance (PRA/FCA, GDPR, data retention policies)"
+    - "Idempotent, well-behaved APIs and events"
+    - "Operational observability (logs, metrics, alerts)"
+  good_ticket_characteristics:
+    - "Clear API or event contract with edge cases and error handling defined"
+    - "Explicit data model changes (fields, types, optionality)"
+    - "Acceptance criteria that cover happy path, failure modes, and audit/observability"
+    - "Includes rollout/migration and backfill where needed"
+
+AI:
+  display_name: "AI Squad"
+  mission: >
+    Build AI-assisted capabilities (e.g. Colleague Assistant, Secure Messaging AI, Trust Layer)
+    that safely automate and augment internal colleague workflows across Shawbrook.
+  primary_users:
+    - "Underwriters and front-line colleagues"
+    - "Ops and servicing teams"
+    - "Product and tech teams using AI as a platform capability"
+  systems_owned:
+    - "Colleague Assistant (RAG-based internal Q&A)"
+    - "Secure Messaging AI responder"
+    - "AI Trust Layer (evaluation, trust scoring, human-in-the-loop)"
+    - "Anonymisation / data protection layer"
+    - "Evaluation and monitoring pipelines for AI models"
+  responsibilities:
+    - "Design and run AI-powered workflows that are safe, explainable, and auditable"
+    - "Provide reusable AI building blocks (Trust Layer, tools) to other squads"
+    - "Ensure AI outputs stay within regulatory and risk appetite"
+  non_functional_priorities:
+    - "PII protection, anonymisation, and access controls"
+    - "Explainability and traceability of AI decisions"
+    - "Evaluation and quality monitoring over time"
+    - "Human-in-the-loop controls for higher-risk flows"
+  good_ticket_characteristics:
+    - "Clear description of user workflow and where AI intervenes"
+    - "Acceptance criteria that cover both model output behaviour and guard-rails/fallbacks"
+    - "Definition of evaluation criteria and feedback loops"
+    - "Consideration of failure modes and escalation paths"
+

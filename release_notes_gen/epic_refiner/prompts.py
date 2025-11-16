@@ -48,12 +48,33 @@ def _build_json_payload(payload: Dict[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
+def _append_squad_context(
+    messages: List[Dict[str, str]], squad_context: Optional[str]
+) -> None:
+    if not squad_context:
+        return
+    squad_msg = {
+        "role": "system",
+        "content": (
+            "Context about the squad that owns this work:\n"
+            f"{squad_context}\n\n"
+            "Align all outputs with this squad's mission, systems, responsibilities, "
+            "and non-functional priorities. Suggest improvements or missing work that "
+            "fit this squad, but do not invent facts not supported by the input."
+        ),
+    }
+    # Insert immediately after the first system message if present; otherwise at start
+    insert_at = 1 if messages and messages[0].get("role") == "system" else 0
+    messages.insert(insert_at, squad_msg)
+
+
 def build_ticket_messages(
     *,
     project: str,
     epic_title: str,
     ticket_payload: Dict[str, Any],
     example_format: Optional[str] = None,
+    squad_context: Optional[str] = None,
 ) -> List[Dict[str, str]]:
     """Construct chat messages for ticket refinement."""
     messages: List[Dict[str, str]] = [
@@ -78,6 +99,8 @@ def build_ticket_messages(
         },
     ]
 
+    _append_squad_context(messages, squad_context)
+
     example_block = _wrap_example(example_format)
     if example_block:
         messages.append(
@@ -99,6 +122,7 @@ def build_epic_messages(
     epic_payload: Dict[str, Any],
     child_ticket_summaries: List[Dict[str, Any]],
     example_format: Optional[str] = None,
+    squad_context: Optional[str] = None,
 ) -> List[Dict[str, str]]:
     """Construct chat messages for epic refinement."""
     messages: List[Dict[str, str]] = [
@@ -124,6 +148,8 @@ def build_epic_messages(
         },
     ]
 
+    _append_squad_context(messages, squad_context)
+
     example_block = _wrap_example(example_format)
     if example_block:
         messages.append(
@@ -144,9 +170,10 @@ def build_missing_tickets_messages(
     *,
     epic_narrative: str,
     child_ticket_summaries: List[Dict[str, Any]],
+    squad_context: Optional[str] = None,
 ) -> List[Dict[str, str]]:
     """Construct chat messages for missing ticket suggestions."""
-    return [
+    messages = [
         {"role": "system", "content": MISSING_TICKETS_SYSTEM_PROMPT},
         {
             "role": "user",
@@ -167,13 +194,17 @@ def build_missing_tickets_messages(
         },
     ]
 
+    _append_squad_context(messages, squad_context)
+    return messages
+
 
 def build_gap_analysis_messages(
     *,
     ticket_results: List[Dict[str, Any]],
+    squad_context: Optional[str] = None,
 ) -> List[Dict[str, str]]:
     """Construct chat messages for gap analysis aggregation."""
-    return [
+    messages = [
         {"role": "system", "content": GAP_ANALYSIS_SYSTEM_PROMPT},
         {
             "role": "user",
@@ -187,4 +218,7 @@ def build_gap_analysis_messages(
             ),
         },
     ]
+
+    _append_squad_context(messages, squad_context)
+    return messages
 

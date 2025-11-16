@@ -11,6 +11,10 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from release_notes_gen.llm import chat_completion
+from release_notes_gen.profiles.squads import (
+    format_squad_context,
+    load_squad_profile,
+)
 
 from .parse import ParseResult, TicketRow, parse_epic_csv, EpicValidationError
 from .prompts import (
@@ -350,6 +354,7 @@ def run_epic_pack_pipeline(
     column_overrides: Optional[Dict[str, str]] = None,
     config: EpicPackConfig,
     progress_callback: Optional[Callable[[str], None]] = None,
+    squad: Optional[str] = None,
 ) -> EpicPackResult:
     """Execute the full epic pack refinement pipeline."""
     def _emit(message: str) -> None:
@@ -371,6 +376,16 @@ def run_epic_pack_pipeline(
 
     cache = JsonCache(config.cache_dir)
     cache_hits = {"tickets": 0, "epic": 0, "suggestions": 0, "gap": 0}
+
+    squad_context: Optional[str] = None
+    if squad:
+        profile = load_squad_profile(squad)
+        if profile:
+            squad_context = format_squad_context(profile)
+            display = profile.get("display_name") or squad
+            _emit(f"Loaded squad context for {display}.")
+        else:
+            _emit(f"Warning: squad '{squad}' not found. Continuing without squad context.")
 
     if config.dry_run:
         return EpicPackResult(
@@ -396,6 +411,7 @@ def run_epic_pack_pipeline(
             "epic_title": epic_title_seed,
             "ticket": payload,
             "example_hash": _hash_text(config.ticket_example),
+            "squad_context": _hash_text(squad_context),
         }
         cache_key = _hash_dict(cache_payload)
 
@@ -415,6 +431,7 @@ def run_epic_pack_pipeline(
             epic_title=epic_title_seed,
             ticket_payload=payload,
             example_format=config.ticket_example,
+            squad_context=squad_context,
         )
 
         parsed, raw_response, lint_feedback = _invoke_json_model(
@@ -474,6 +491,7 @@ def run_epic_pack_pipeline(
         "epic": epic_payload,
         "children": child_summaries,
         "example_hash": _hash_text(config.epic_example),
+        "squad_context": _hash_text(squad_context),
     }
     epic_cache_key = _hash_dict(epic_cache_payload)
     cached_epic = cache.get(epic_cache_key)
@@ -491,6 +509,7 @@ def run_epic_pack_pipeline(
             epic_payload=epic_payload,
             child_ticket_summaries=child_summaries,
             example_format=config.epic_example,
+            squad_context=squad_context,
         )
         parsed_epic, epic_raw, _ = _invoke_json_model(
             epic_messages,
@@ -521,6 +540,7 @@ def run_epic_pack_pipeline(
         "max_tokens": config.max_tokens,
         "epic_narrative": epic_result.output.get("narrative", ""),
         "children": child_summaries,
+        "squad_context": _hash_text(squad_context),
     }
     suggestion_key = _hash_dict(suggestion_cache_payload)
     cached_suggestions = cache.get(suggestion_key)
@@ -534,6 +554,7 @@ def run_epic_pack_pipeline(
         suggestions_messages = build_missing_tickets_messages(
             epic_narrative=epic_result.output.get("narrative", ""),
             child_ticket_summaries=child_summaries,
+            squad_context=squad_context,
         )
         parsed_suggestions, suggestions_raw, _ = _invoke_json_model(
             suggestions_messages,
@@ -570,6 +591,7 @@ def run_epic_pack_pipeline(
         "temperature": config.temperature,
         "max_tokens": config.max_tokens,
         "tickets": gap_payload_data,
+        "squad_context": _hash_text(squad_context),
     }
     gap_cache_key = _hash_dict(gap_cache_payload)
     cached_gap = cache.get(gap_cache_key)
@@ -582,7 +604,10 @@ def run_epic_pack_pipeline(
             raw_response=cached_gap["raw_response"],
         )
     else:
-        gap_messages = build_gap_analysis_messages(ticket_results=gap_payload_data)
+        gap_messages = build_gap_analysis_messages(
+            ticket_results=gap_payload_data,
+            squad_context=squad_context,
+        )
         parsed_gap, gap_raw, _ = _invoke_json_model(
             gap_messages,
             model=config.model,

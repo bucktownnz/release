@@ -25,6 +25,10 @@ from release_notes_gen.epic_refiner.pipeline import (
     run_epic_pack_pipeline,
 )
 from release_notes_gen.epic_refiner.parse import EpicValidationError, parse_epic_csv
+from release_notes_gen.profiles.squads import (
+    format_squad_context,
+    load_squad_profile,
+)
 
 
 MODEL_OPTIONS = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"]
@@ -411,6 +415,17 @@ def render_epic_pack_tab(api_key: Optional[str]) -> None:
             help="Used in prompts and outputs.",
             key="epic_project_code",
         )
+        squad_choice = st.selectbox(
+            "Squad (optional)",
+            options=["None", "CAT", "AI"],
+            index=0,
+            help=(
+                "Select the squad that owns this epic so the AI can align tickets "
+                "with their mission, systems, and non-functional priorities."
+            ),
+            key="epic_squad_choice",
+        )
+        selected_squad = None if squad_choice == "None" else squad_choice
         output_dir = st.text_input(
             "Output directory",
             value="./out/epic_packs",
@@ -460,6 +475,20 @@ def render_epic_pack_tab(api_key: Optional[str]) -> None:
         description_col = st.text_input("Description", key="epic_description_override")
     with col_override3:
         parent_col = st.text_input("Parent key", key="epic_parent_override")
+
+    if selected_squad:
+        profile = load_squad_profile(selected_squad)
+        if profile:
+            with st.expander(
+                f"Squad context: {profile.get('display_name', selected_squad)}",
+                expanded=False,
+            ):
+                st.markdown(f"```text\n{format_squad_context(profile)}\n```")
+        else:
+            st.warning(
+                f"No squad profile found for '{selected_squad}'. "
+                "Proceeding without squad context."
+            )
 
     with st.expander("Optional example formats"):
         st.markdown(
@@ -624,6 +653,7 @@ def render_epic_pack_tab(api_key: Optional[str]) -> None:
                     column_overrides=state["column_overrides"],
                     config=config,
                     progress_callback=_log,
+                    squad=selected_squad,
                 )
                 state["result"] = result
                 state["logs"] = logs
