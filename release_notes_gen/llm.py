@@ -17,6 +17,7 @@ from .prompts import (
     build_fix_version_prompt,
     build_confluence_prompt,
     build_slack_prompt,
+    build_core_banking_weekly_prompt,
 )
 
 
@@ -109,6 +110,23 @@ def chat_completion(
     Returns:
         Response content as a string (stripped).
     """
+    return _call_openai(messages, model, max_tokens, temperature)
+
+
+def generate_core_banking_weekly_update(
+    notes: str,
+    team_name: str = "Customer and Accounts Team",
+    model: str = "gpt-4o-mini",
+    max_tokens: int = 1200,
+    temperature: float = 0.2,
+    example_format: Optional[str] = None,
+) -> str:
+    """Generate Core Banking Weekly Update from freehand notes."""
+    messages = build_core_banking_weekly_prompt(
+        notes=notes,
+        team_name=team_name,
+        example_format=example_format,
+    )
     return _call_openai(messages, model, max_tokens, temperature)
 
 

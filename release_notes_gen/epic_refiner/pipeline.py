@@ -26,7 +26,7 @@ from .prompts import (
 from .writer import write_epic_pack
 
 
-PROMPT_VERSION = "2024-11-epic-pack-v1"
+PROMPT_VERSION = "2025-11-epic-pack-v3"
 DEFAULT_TRUNCATION = 0
 WEASEL_WORDS = ("etc", "tbd", "asap")
 
@@ -107,7 +107,7 @@ def lint_ticket_output(output: Dict[str, Any]) -> List[str]:
                 if _contains_weasel_word(value):
                     issues.append(f"Acceptance criterion {idx} uses weasel words")
 
-    for list_key in ("risks", "test_ideas"):
+    for list_key in ("test_ideas",):
         value = output.get(list_key)
         if not isinstance(value, list):
             issues.append(f"{list_key} must be a list")
@@ -538,7 +538,7 @@ def run_epic_pack_pipeline(
         "model": config.model,
         "temperature": config.temperature,
         "max_tokens": config.max_tokens,
-        "epic_narrative": epic_result.output.get("narrative", ""),
+        "epic_narrative": epic_result.output.get("description", "") or epic_result.output.get("narrative", ""),
         "children": child_summaries,
         "squad_context": _hash_text(squad_context),
     }

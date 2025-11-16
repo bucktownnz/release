@@ -17,8 +17,8 @@ TICKET_SYSTEM_PROMPT = (
 
 EPIC_SYSTEM_PROMPT = (
     "You are the world’s best technical product manager. "
-    "Produce a crisp epic narrative, outcome statement, epic-level AC (Given/When/Then), key risks, "
-    "and constraints/NFRs if implied. Evaluate ambition: do the child tickets collectively deliver "
+    "Produce a crisp Description (what and why), Outcomes (bullet list), Acceptance Criteria (Given/When/Then), "
+    "In Scope, and Out of Scope. Evaluate ambition: do the child tickets collectively deliver "
     "a meaningful outcome? If not, recommend bolder, higher-value slices. Respond in UK English."
 )
 
@@ -92,9 +92,13 @@ def build_ticket_messages(
         {
             "role": "user",
             "content": (
-                "Return JSON only with keys: title, summary, acceptance_criteria (list of objects "
-                "with given/when/then), risks (list), test_ideas (list), questions (optional list). "
-                "Use concise UK English. Do not include narrative or markdown outside the JSON."
+                "Return JSON only with keys: title, summary, description, outcomes (list), "
+                "acceptance_criteria (list of objects with given/when/then), "
+                "in_scope (list), out_of_scope (list), test_ideas (list), "
+                "user_story (optional string; include only if this is a user story), "
+                "questions (optional list; include especially if this is a SPIKE or has open questions). "
+                "Detect SPIKE if issue_type contains 'SPIKE' or the summary/title starts with '[SPIKE]'. "
+                "Use concise UK English. Do not include markdown outside the JSON."
             ),
         },
     ]
@@ -107,8 +111,8 @@ def build_ticket_messages(
             {
                 "role": "user",
                 "content": (
-                    "If an EXAMPLE FORMAT is provided, match its structure and headings exactly; "
-                    "otherwise use the default template.\n"
+                    "If an EXAMPLE FORMAT is provided, use it only for tone and phrasing. "
+                    "You must still return JSON with exactly the keys and structure specified above.\n"
                     f"{example_block}"
                 ),
             }
@@ -140,9 +144,9 @@ def build_epic_messages(
         {
             "role": "user",
             "content": (
-                "Return JSON only with keys: epic_title, narrative, outcome, "
-                "epic_acceptance_criteria (list of objects with given/when/then), risks (list), "
-                "constraints_or_nfrs (list, allow empty), ambition_assessment. "
+                "Return JSON only with keys: epic_title, description, outcomes (list), "
+                "acceptance_criteria (list of objects with given/when/then), "
+                "in_scope (list), out_of_scope (list), ambition_assessment. "
                 "Use concise UK English. Do not add markdown outside the JSON."
             ),
         },
@@ -156,8 +160,8 @@ def build_epic_messages(
             {
                 "role": "user",
                 "content": (
-                    "If an EXAMPLE FORMAT is provided, match its structure and headings exactly; "
-                    "otherwise use the default template.\n"
+                    "If an EXAMPLE FORMAT is provided, use it only for tone and phrasing. "
+                    "You must still return JSON with exactly the keys and structure specified above.\n"
                     f"{example_block}"
                 ),
             }

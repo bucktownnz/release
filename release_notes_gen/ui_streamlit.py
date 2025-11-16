@@ -16,10 +16,12 @@ from release_notes_gen.llm import (
     generate_confluence_notes,
     generate_fix_version_notes,
     generate_slack_announcement,
+    generate_core_banking_weekly_update,
 )
 from release_notes_gen.writer import write_outputs
 
 from release_notes_gen.epic_refiner.pipeline import (
+    PROMPT_VERSION,
     EpicPackConfig,
     EpicPackResult,
     run_epic_pack_pipeline,
@@ -464,6 +466,12 @@ def render_epic_pack_tab(api_key: Optional[str]) -> None:
             step=1,
             key="epic_concurrency",
         )
+        force_fresh = st.checkbox(
+            "Force fresh run (ignore cache)",
+            value=False,
+            help="Bypass cached results even if the CSV and settings are unchanged.",
+            key="epic_force_fresh",
+        )
 
     st.subheader("Column Overrides (optional)")
     col_override1, col_override2, col_override3 = st.columns(3)
@@ -647,6 +655,11 @@ def render_epic_pack_tab(api_key: Optional[str]) -> None:
                     ticket_example=state["ticket_example"],
                     epic_example=state["epic_example"],
                     dry_run=False,
+                    prompt_version=(
+                        f"{PROMPT_VERSION}-nocache-{int(time.time())}"
+                        if force_fresh
+                        else PROMPT_VERSION
+                    ),
                 )
                 result = run_epic_pack_pipeline(
                     file_content=state["file_bytes"],
@@ -718,6 +731,105 @@ def render_epic_pack_tab(api_key: Optional[str]) -> None:
                 st.markdown("\n".join(f"- {entry}" for entry in state["logs"]))
 
 
+def ensure_core_banking_state() -> None:
+    if "core_banking_update" not in st.session_state:
+        st.session_state.core_banking_update = None
+    if "core_banking_editable" not in st.session_state:
+        st.session_state.core_banking_editable = ""
+
+
+def render_core_banking_weekly_tab(config: Dict[str, Any]) -> None:
+    """Render the Core Banking Weekly Update workflow."""
+    ensure_core_banking_state()
+
+    st.header("🏦 Core Banking Weekly Update")
+    st.markdown(
+        "Paste freehand notes and generate a structured weekly update suitable for senior stakeholders."
+    )
+
+    team_name = st.text_input(
+        "Team/Programme name",
+        value="Customer and Accounts Team",
+        help="Appears as the heading in the output.",
+        key="cb_team_name",
+    )
+    notes = st.text_area(
+        "Freehand notes (Markdown or plaintext)",
+        height=260,
+        placeholder="Type or paste your notes here...",
+        key="cb_notes",
+    )
+
+    with st.expander("📋 Optional: Example format to match"):
+        example_file = st.file_uploader(
+            "Upload example (.md/.txt)",
+            type=["md", "txt"],
+            key="cb_example_file",
+        )
+        example_text = st.text_area(
+            "Or paste example format",
+            height=150,
+            key="cb_example_text",
+        )
+
+    generate = st.button(
+        "✨ Generate Weekly Update",
+        type="primary",
+        use_container_width=True,
+        key="cb_generate",
+    )
+
+    st.subheader("📝 Output")
+
+    if generate:
+        if not notes.strip():
+            st.error("Please enter some notes.")
+            return
+        if not config.get("api_key"):
+            st.error("OPENAI_API_KEY not set. Cannot generate the weekly update.")
+            return
+        example_format = load_example_from_file_or_text(example_file, example_text)
+        try:
+            with st.spinner("Generating weekly update..."):
+                content = generate_core_banking_weekly_update(
+                    notes=notes.strip(),
+                    team_name=team_name.strip() or "Customer and Accounts Team",
+                    model=config["model"],
+                    max_tokens=min(1400, config["max_tokens"]),
+                    temperature=config["temperature"],
+                    example_format=example_format,
+                )
+            st.success("✓ Update generated")
+            st.session_state.core_banking_update = content
+            st.session_state.core_banking_editable = content
+        except Exception as exc:  # pragma: no cover - Streamlit UI
+            st.error(f"Failed to generate weekly update: {exc}")
+            st.exception(exc)
+
+    if st.session_state.core_banking_update:
+        st.markdown("_You can edit the output below before downloading._")
+        st.session_state.core_banking_editable = st.text_area(
+            "Editable Weekly Update (Markdown)",
+            value=st.session_state.core_banking_editable,
+            height=320,
+            key="cb_output_edit",
+        )
+        col1, col2 = st.columns(2)
+        with col1:
+            st.download_button(
+                "⬇️ Download as Markdown",
+                data=st.session_state.core_banking_editable,
+                file_name="core_banking_weekly_update.md",
+                mime="text/markdown",
+            )
+        with col2:
+            st.download_button(
+                "⬇️ Download as Text",
+                data=st.session_state.core_banking_editable,
+                file_name="core_banking_weekly_update.txt",
+                mime="text/plain",
+            )
+
 def main() -> None:
     """Main Streamlit app."""
     st.set_page_config(
@@ -731,11 +843,15 @@ def main() -> None:
 
     sidebar_config = configure_release_sidebar()
 
-    release_tab, epic_tab = st.tabs(["Release Notes", "Epic Pack Refiner"])
+    release_tab, epic_tab, core_banking_tab = st.tabs(
+        ["Release Notes", "Epic Pack Refiner", "Core Banking Weekly Update"]
+    )
     with release_tab:
         render_release_notes_tab(sidebar_config)
     with epic_tab:
         render_epic_pack_tab(sidebar_config["api_key"])
+    with core_banking_tab:
+        render_core_banking_weekly_tab(sidebar_config)
 
 
 if __name__ == "__main__":

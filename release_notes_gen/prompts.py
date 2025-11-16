@@ -77,6 +77,39 @@ def wrap_example_block(example: str) -> str:
     return f"### EXAMPLE FORMAT START\n{example}\n### EXAMPLE FORMAT END"
 
 
+CORE_BANKING_WEEKLY_PROMPT = """
+You are preparing a concise, professional weekly update for senior stakeholders in the Core Banking programme.
+
+Input: Freehand notes provided by the user (may be bullets, fragments, or mixed detail).
+
+Your job:
+- Extract the most relevant, concrete updates.
+- Infer the overall programme RAG status (Green | Amber | Red) based on risks, delays, and delivery confidence suggested by the notes.
+- Identify releases completed this week and summarise crisply.
+- Identify upcoming releases or next steps planned for next week and summarise crisply.
+- Add any other relevant sections (e.g. Workshops & Planning, Design Progress, Risks, Blockers, Decisions, External Dependencies) ONLY if clearly supported by the notes.
+- If a required section lacks information, write a clear placeholder like "No updates this week."
+- Keep the tone executive-ready: succinct, factual, and outcome-driven. Avoid jargon.
+
+Strictly follow this output format (Markdown):
+
+{team_name}
+
+Status: <Green | Amber | Red>
+Releases this week: <summary or "No updates this week">
+Upcoming Release: <summary or "No updates this week">
+
+[Optional Sections — include only if relevant; choose clear headings]
+<Heading>: <succinct summary written for senior stakeholders>
+
+Rules:
+- Always include the three required lines: Status, Releases this week, Upcoming Release.
+- Do not invent details; only summarise or infer where clearly implied.
+- Prefer 1–3 sentences per line/section; keep it tight.
+- If an EXAMPLE FORMAT is provided, follow its tone and micro-structure while preserving the required three lines and headings.
+"""
+
+
 def build_fix_version_prompt(
     tickets: list,
     project: str,
@@ -165,4 +198,34 @@ def format_tickets_json(tickets: list) -> str:
     """Format tickets as JSON-like string for the prompt."""
     import json
     return json.dumps(tickets, indent=2)
+
+
+def build_core_banking_weekly_prompt(
+    notes: str,
+    team_name: str = "Customer and Accounts Team",
+    example_format: Optional[str] = None,
+) -> list:
+    """Build message array for Core Banking Weekly Update."""
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a seasoned programme manager producing a weekly executive update.",
+        },
+        {
+            "role": "user",
+            "content": f"Freehand notes:\n```\n{notes}\n```",
+        },
+        {
+            "role": "user",
+            "content": CORE_BANKING_WEEKLY_PROMPT.format(team_name=team_name),
+        },
+    ]
+    if example_format:
+        messages.append(
+            {
+                "role": "user",
+                "content": wrap_example_block(example_format),
+            }
+        )
+    return messages
 

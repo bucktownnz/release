@@ -58,15 +58,34 @@ def _format_ticket_section(result: "TicketRefineResult") -> str:
         "**Summary**",
         textwrap.fill(output.get("summary", "").strip(), width=90),
         "",
+        "**Description**",
+        textwrap.fill(output.get("description", "").strip(), width=90) or "_No description provided._",
+        "",
+        "**Outcomes**",
+        _format_list(output.get("outcomes"), "_No outcomes stated._"),
+        "",
         "**Acceptance criteria**",
         _format_acceptance_criteria(output.get("acceptance_criteria") or []),
         "",
-        "**Risks**",
-        _format_list(output.get("risks"), "_No risks identified._"),
+        "**In Scope**",
+        _format_list(output.get("in_scope"), "_Not specified._"),
+        "",
+        "**Out of Scope**",
+        _format_list(output.get("out_of_scope"), "_Not specified._"),
         "",
         "**Test ideas**",
         _format_list(output.get("test_ideas"), "_No test ideas provided._"),
     ]
+
+    user_story = output.get("user_story")
+    if isinstance(user_story, str) and user_story.strip():
+        section_lines.extend(
+            [
+                "",
+                "**User story**",
+                textwrap.fill(user_story.strip(), width=90),
+            ]
+        )
 
     questions = output.get("questions") or []
     if questions:
@@ -100,25 +119,27 @@ def _format_ticket_section(result: "TicketRefineResult") -> str:
 
 def _build_epic_markdown(epic_result: "EpicRefineResult") -> str:
     output = epic_result.output
-    ac_section = _format_acceptance_criteria(output.get("epic_acceptance_criteria") or [])
+    ac_section = _format_acceptance_criteria(
+        output.get("acceptance_criteria") or output.get("epic_acceptance_criteria") or []
+    )
 
     parts = [
         f"# {output.get('epic_title') or epic_result.epic.summary or epic_result.epic.key}",
         "",
-        "## Narrative",
-        textwrap.fill(output.get("narrative", "").strip(), width=100),
+        "## Description",
+        textwrap.fill((output.get("description") or output.get("narrative") or "").strip(), width=100),
         "",
-        "## Outcome",
-        textwrap.fill(output.get("outcome", "").strip(), width=100),
+        "## Outcomes",
+        _format_list(output.get("outcomes"), "_No outcomes stated._"),
         "",
         "## Acceptance criteria",
         ac_section,
         "",
-        "## Risks",
-        _format_list(output.get("risks"), "_No risks highlighted._"),
+        "## In Scope",
+        _format_list(output.get("in_scope"), "_Not specified._"),
         "",
-        "## Constraints / NFRs",
-        _format_list(output.get("constraints_or_nfrs"), "_None stated._"),
+        "## Out of Scope",
+        _format_list(output.get("out_of_scope"), "_Not specified._"),
         "",
         "## Ambition assessment",
         textwrap.fill(output.get("ambition_assessment", "").strip(), width=100),
