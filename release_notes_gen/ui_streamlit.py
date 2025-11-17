@@ -31,6 +31,16 @@ from release_notes_gen.profiles.squads import (
     format_squad_context,
     load_squad_profile,
 )
+from release_notes_gen.bulk_refiner.pipeline import (
+    BulkRefinerConfig,
+    run_bulk_refiner_pipeline,
+)
+from release_notes_gen.bulk_refiner.writer import (
+    refined_tickets_to_csv,
+    refined_tickets_to_markdown,
+    epic_audit_to_markdown,
+    fix_versions_to_markdown,
+)
 
 
 MODEL_OPTIONS = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"]
@@ -830,6 +840,173 @@ def render_core_banking_weekly_tab(config: Dict[str, Any]) -> None:
                 mime="text/plain",
             )
 
+def render_bulk_ticket_refiner_tab(config: Dict[str, Any]) -> None:
+    st.header("🧩 Bulk Ticket Refiner")
+    st.markdown("Upload a CSV of Jira tickets to refine titles/descriptions, audit epics, and suggest fix version groups.")
+
+    if "bulk_state" not in st.session_state:
+        st.session_state.bulk_state = {
+            "result": None,
+            "detected_columns": {},
+            "errors": [],
+        }
+    state = st.session_state.bulk_state
+
+    uploader_col, settings_col = st.columns([2, 1])
+    with uploader_col:
+        uploaded_file = st.file_uploader(
+            "Upload Jira CSV",
+            type=["csv"],
+            help="Required columns: Issue Key, Summary, Description, Parent Key, Fix Versions",
+            key="bulk_csv_file",
+        )
+        project = st.text_input(
+            "Project code",
+            placeholder="CPS",
+            help="Used in prompts.",
+            key="bulk_project_code",
+        )
+        batch_size = st.number_input(
+            "Batch size",
+            min_value=10,
+            max_value=200,
+            value=50,
+            step=10,
+            help="Number of tickets processed per LLM batch.",
+            key="bulk_batch_size",
+        )
+    with settings_col:
+        model = st.selectbox(
+            "Model",
+            MODEL_OPTIONS,
+            index=0,
+            key="bulk_model",
+        )
+        temperature = st.slider(
+            "Temperature",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.2,
+            step=0.1,
+            key="bulk_temperature",
+        )
+        max_tokens = st.number_input(
+            "Max tokens",
+            min_value=600,
+            max_value=4000,
+            value=1600,
+            step=100,
+            key="bulk_max_tokens",
+        )
+
+    run = st.button(
+        "Run Refinement",
+        type="primary",
+        use_container_width=True,
+        key="bulk_run_button",
+    )
+
+    if run:
+        if not uploaded_file:
+            st.error("Please upload a CSV file.")
+            return
+        if not project.strip():
+            st.error("Project code is required.")
+            return
+        if not config.get("api_key"):
+            st.error("OPENAI_API_KEY not set. Cannot run refinement.")
+            return
+
+        file_bytes = uploaded_file.getvalue()
+
+        progress_area = st.container()
+        progress_placeholder = progress_area.empty()
+
+        def _log(msg: str) -> None:
+            progress_placeholder.markdown(f"- {msg}")
+
+        try:
+            result, detected, errors = run_bulk_refiner_pipeline(
+                file_bytes=file_bytes,
+                config=BulkRefinerConfig(
+                    project=project.strip(),
+                    model=model,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    batch_size=int(batch_size),
+                ),
+                progress=_log,
+            )
+            state["result"] = result
+            state["detected_columns"] = detected
+            state["errors"] = errors
+            st.success("✓ Refinement complete")
+        except Exception as exc:  # pragma: no cover - Streamlit UI
+            st.error(f"Failed to run bulk refinement: {exc}")
+            st.exception(exc)
+
+    if state.get("result"):
+        result = state["result"]
+        st.divider()
+        st.subheader("Results")
+
+        cols = st.columns(3)
+        cols[0].metric("Tickets refined", len(result.refined))
+        cols[1].metric("Missing Epic %", f"{result.epic_audit.percent_missing_epic:.1f}%")
+        cols[2].metric("Suggested groups", len(result.fix_versions.groups))
+
+        if state.get("errors"):
+            with st.expander("Warnings / Errors"):
+                st.markdown(
+                    "\n".join(f"- {msg}" for msg in state.get("errors", []))
+                    or "_No errors recorded._"
+                )
+
+        tickets_tab, epic_tab, fix_tab, downloads_tab = st.tabs(
+            ["Refined Tickets", "Epic Audit", "Fix Version Groups", "Downloads"]
+        )
+
+        with tickets_tab:
+            for t in result.refined:
+                with st.expander(f"{t.issue_key} — {t.refined_summary}"):
+                    st.markdown(t.refined_description or "_No description_")
+                    st.markdown("**Acceptance Criteria**")
+                    if t.acceptance_criteria:
+                        st.markdown("\n".join(f"- {ac}" for ac in t.acceptance_criteria))
+                    else:
+                        st.markdown("- Not enough information provided")
+
+        with epic_tab:
+            st.markdown(epic_audit_to_markdown(result))
+
+        with fix_tab:
+            st.markdown(fix_versions_to_markdown(result))
+
+        with downloads_tab:
+            st.download_button(
+                "Download refined tickets (CSV)",
+                data=refined_tickets_to_csv(result.refined),
+                file_name="refined_tickets.csv",
+                mime="text/csv",
+            )
+            st.download_button(
+                "Download refined tickets (Markdown)",
+                data=refined_tickets_to_markdown(result.refined),
+                file_name="refined_tickets.md",
+                mime="text/markdown",
+            )
+            st.download_button(
+                "Download epic audit (Markdown)",
+                data=epic_audit_to_markdown(result),
+                file_name="epic_audit.md",
+                mime="text/markdown",
+            )
+            st.download_button(
+                "Download fix version recommendations (Markdown)",
+                data=fix_versions_to_markdown(result),
+                file_name="fix_version_recommendations.md",
+                mime="text/markdown",
+            )
 def main() -> None:
     """Main Streamlit app."""
     st.set_page_config(
@@ -843,18 +1020,19 @@ def main() -> None:
 
     sidebar_config = configure_release_sidebar()
 
-    release_tab, epic_tab, core_banking_tab = st.tabs(
-        ["Release Notes", "Epic Pack Refiner", "Core Banking Weekly Update"]
+    release_tab, epic_tab, bulk_tab, core_banking_tab = st.tabs(
+        ["Release Notes", "Epic Pack Refiner", "Bulk Ticket Refiner", "Core Banking Weekly Update"]
     )
     with release_tab:
         render_release_notes_tab(sidebar_config)
     with epic_tab:
         render_epic_pack_tab(sidebar_config["api_key"])
+    with bulk_tab:
+        render_bulk_ticket_refiner_tab(sidebar_config)
     with core_banking_tab:
         render_core_banking_weekly_tab(sidebar_config)
 
 
 if __name__ == "__main__":
     main()
-
 
