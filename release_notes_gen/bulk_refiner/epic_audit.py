@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import json
-from collections import defaultdict
-from typing import Dict, List, Tuple
-
 from json import JSONDecodeError
+from typing import Dict, List, Tuple
 
 from release_notes_gen.llm import chat_completion
 from .prompts import build_epic_suggestion_messages
-from .types import EpicAudit, EpicSuggestion, RefinedTicket
+from .types import EpicAudit, EpicSuggestion, MisalignedTicket, RefinedTicket
 
 
 def _parse_json(text: str) -> Dict:
@@ -72,7 +70,13 @@ def run_epic_audit(
     temperature: float,
 ) -> Tuple[EpicAudit, str]:
     payload = [
-        {"issue_key": t.issue_key, "refined_summary": t.refined_summary, "summary": t.refined_summary}
+        {
+            "issue_key": t.issue_key,
+            "refined_summary": t.refined_summary,
+            "summary": t.refined_summary,
+            "refined_description": t.refined_description,
+            "parent_key": t.parent_key or None,
+        }
         for t in tickets
     ]
     messages = build_epic_suggestion_messages(tickets=payload)
@@ -83,6 +87,8 @@ def run_epic_audit(
         per_ticket_suggestions = parsed.get("per_ticket_suggestions") or {}
         recommended_epics_raw = parsed.get("recommended_epics") or []
         suggested_total_epics = int(parsed.get("suggested_total_epics") or 0)
+        misaligned_raw = parsed.get("misaligned_tickets") or []
+        unassigned_count = int(parsed.get("unassigned_count") or 0)
 
         recommended_epics: List[EpicSuggestion] = []
         for item in recommended_epics_raw:
@@ -93,13 +99,36 @@ def run_epic_audit(
                 recommended_epics.append(
                     EpicSuggestion(suggested_epic_name=name, reason=reason, tickets=tks)
                 )
+
+        misaligned_tickets: List[MisalignedTicket] = []
+        for item in misaligned_raw:
+            issue_key = (item.get("issue_key") or "").strip()
+            current_epic = (item.get("current_epic") or "").strip() or None
+            suggested_epic = (item.get("suggested_epic") or "").strip()
+            reason = (item.get("reason") or "").strip()
+            if issue_key and suggested_epic:
+                misaligned_tickets.append(
+                    MisalignedTicket(
+                        issue_key=issue_key,
+                        current_epic=current_epic,
+                        suggested_epic=suggested_epic,
+                        reason=reason,
+                    )
+                )
     except JSONDecodeError:
         # Fallback: simple heuristic audit with no groupings
         per_ticket_suggestions = {}
         recommended_epics = []
         suggested_total_epics = 0
+        misaligned_tickets = []
+        unassigned_count = 0
 
-    missing_count = sum(1 for t in tickets if not (t.parent_key or "").strip())
+    # Calculate missing count if not provided by LLM
+    if unassigned_count == 0:
+        missing_count = sum(1 for t in tickets if not (t.parent_key or "").strip())
+    else:
+        missing_count = unassigned_count
+    
     percent_missing = (missing_count / max(1, len(tickets))) * 100.0
 
     return (
@@ -108,6 +137,8 @@ def run_epic_audit(
             recommended_epics=recommended_epics,
             suggested_total_epics=max(suggested_total_epics, len(recommended_epics)),
             per_ticket_suggestions={str(k): (v or None) for k, v in per_ticket_suggestions.items()},
+            misaligned_tickets=misaligned_tickets,
+            unassigned_ticket_count=missing_count,
         ),
         response,
     )

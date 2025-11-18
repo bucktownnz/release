@@ -82,6 +82,10 @@ def refine_ticket(
     if not isinstance(ac_list, list) or not ac_list:
         ac_list = ["Not enough information provided"]
     ac_list = [str(item).strip() for item in ac_list if str(item).strip()]
+    
+    ticket_diagnosis = (parsed.get("ticket_diagnosis") or "").strip() or None
+    suggested_epic = (parsed.get("suggested_epic") or "").strip() or None
+    suggested_fix_version_group = (parsed.get("suggested_fix_version_group") or "").strip() or None
 
     return (
         RefinedTicket(
@@ -91,6 +95,9 @@ def refine_ticket(
             acceptance_criteria=ac_list,
             parent_key=ticket.parent_key,
             fix_versions=list(ticket.fix_versions),
+            ticket_diagnosis=ticket_diagnosis,
+            suggested_epic=suggested_epic,
+            suggested_fix_version_group=suggested_fix_version_group,
         ),
         response,
     )

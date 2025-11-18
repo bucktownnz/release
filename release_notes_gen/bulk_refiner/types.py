@@ -25,6 +25,9 @@ class RefinedTicket:
     acceptance_criteria: List[str]
     parent_key: Optional[str] = None
     fix_versions: List[str] = field(default_factory=list)
+    ticket_diagnosis: Optional[str] = None
+    suggested_epic: Optional[str] = None
+    suggested_fix_version_group: Optional[str] = None
 
 
 @dataclass(slots=True)
@@ -35,11 +38,21 @@ class EpicSuggestion:
 
 
 @dataclass(slots=True)
+class MisalignedTicket:
+    issue_key: str
+    current_epic: Optional[str]
+    suggested_epic: str
+    reason: str
+
+
+@dataclass(slots=True)
 class EpicAudit:
     percent_missing_epic: float
     recommended_epics: List[EpicSuggestion]
     suggested_total_epics: int
     per_ticket_suggestions: Dict[str, Optional[str]]  # issue_key -> suggested epic or None
+    misaligned_tickets: List[MisalignedTicket] = field(default_factory=list)
+    unassigned_ticket_count: int = 0
 
 
 @dataclass(slots=True)

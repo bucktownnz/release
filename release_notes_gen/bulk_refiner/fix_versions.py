@@ -65,7 +65,12 @@ def suggest_fix_version_groups(
     temperature: float,
 ) -> Tuple[FixVersionRecommendation, str]:
     payload = [
-        {"issue_key": t.issue_key, "refined_summary": t.refined_summary, "summary": t.refined_summary}
+        {
+            "issue_key": t.issue_key,
+            "refined_summary": t.refined_summary,
+            "summary": t.refined_summary,
+            "refined_description": t.refined_description,
+        }
         for t in tickets
     ]
     messages = build_fix_version_grouping_messages(tickets=payload)
